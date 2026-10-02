@@ -24,7 +24,8 @@
     "express-rate-limit": "^7.5.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.9.5",
-    "nodemailer": "^10.0.12"
+    "nodemailer": "^10.0.12",
+    "resend": "^6.32.0"
   },
   "devDependencies": {
     "sharp": "^0.35.5"
