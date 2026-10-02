@@ -1,7 +1,51 @@
 import axios from 'axios';
 
-// Centralized API Base URL configured via Vite env or defaults to local Node backend
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
+/**
+ * Resolves and normalizes the backend API base URL.
+ * In production:
+ *   - Uses import.meta.env.VITE_API_URL if configured.
+ *   - Guaranteed to NEVER fall back to localhost (falls back to production Render backend URL).
+ * In development:
+ *   - Supports local development (defaults to http://localhost:5000/api).
+ * Normalizes trailing slashes and ensures a single '/api' path suffix to avoid duplicate or missing '/api' routes.
+ */
+export function resolveApiBaseUrl() {
+  const isProd = import.meta.env.PROD;
+  const rawUrl = (
+    import.meta.env.VITE_API_URL ||
+    (!isProd ? (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_BACKEND_URL) : '') ||
+    ''
+  ).trim();
+
+  // In production builds (Vercel / Vite build)
+  if (isProd) {
+    if (rawUrl && !rawUrl.includes('localhost') && !rawUrl.includes('127.0.0.1')) {
+      let normalized = rawUrl.replace(/\/+$/, '');
+      if (!normalized.endsWith('/api')) {
+        normalized = `${normalized}/api`;
+      }
+      return normalized;
+    }
+    // Production fallback: strictly the deployed Render backend (never localhost)
+    return 'https://shadowtrace-backend-09sa.onrender.com/api';
+  }
+
+  // Local development only fallback
+  const devUrl = (
+    rawUrl ||
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_BACKEND_URL ||
+    'http://localhost:5000/api'
+  ).trim();
+
+  let normalized = devUrl.replace(/\/+$/, '');
+  if (!normalized.endsWith('/api')) {
+    normalized = `${normalized}/api`;
+  }
+  return normalized;
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 if (import.meta.env.DEV) {
   console.log(`[ShadowTrace] API Base URL: ${API_BASE_URL}`);
@@ -568,7 +612,8 @@ export async function exportSearch(id, format = 'json', options = {}) {
  */
 export async function computeCoordinatesDistance(lat1, lon1, lat2, lon2, options = {}) {
   try {
-    const javaUrl = import.meta.env.VITE_JAVA_SERVICE_URL || 'http://localhost:8080';
+    const javaUrl = import.meta.env.VITE_JAVA_SERVICE_URL || (import.meta.env.PROD ? null : 'http://localhost:8080');
+    if (!javaUrl) return null;
     const res = await axios.post(`${javaUrl}/api/java/analytics/distance`, {
       lat1, lon1, lat2, lon2
     }, { 

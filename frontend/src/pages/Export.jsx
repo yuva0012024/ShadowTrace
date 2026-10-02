@@ -95,7 +95,7 @@ export default function Export() {
       {networkError && (
         <div className="alert-error">
           <AlertCircle size={18} />
-          <span>{networkError} (Please verify backend is running on port 5000)</span>
+          <span>{networkError}</span>
         </div>
       )}
 

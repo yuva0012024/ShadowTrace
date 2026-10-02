@@ -32,8 +32,9 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const app = express();
 const PORT = apiConfig.server.port;
 
-// 3. Configure CORS - dynamically support any local development port without hardcoding
-const allowedOrigins = [
+// 3. Configure CORS - dynamically support local development and production Vercel frontend
+const defaultAllowedOrigins = [
+  'https://shadow-trace-murex.vercel.app',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
@@ -42,25 +43,37 @@ const allowedOrigins = [
   'http://127.0.0.1:5175'
 ];
 
+const getPermittedOrigins = () => {
+  const envOrigins = (process.env.CLIENT_ORIGIN || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  return Array.from(new Set([...defaultAllowedOrigins, ...envOrigins]));
+};
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow non-browser requests (Postman, curl, internal server calls)
     if (!origin) return callback(null, true);
 
-    // Exact matches from list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, origin);
+    const cleanOrigin = origin.trim().replace(/\/+$/, '');
+    const permitted = getPermittedOrigins();
+
+    // Exact matches from list or configured CLIENT_ORIGIN
+    if (permitted.includes(cleanOrigin)) {
+      return callback(null, cleanOrigin);
     }
 
     // Dynamic localhost / 127.0.0.1 on ANY port for local development (e.g. Vite 5173, 5174, 5175)
-    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin);
     if (isLocalhost) {
-      return callback(null, origin);
+      return callback(null, cleanOrigin);
     }
 
-    // Configured client origin
-    if (process.env.CLIENT_ORIGIN && origin === process.env.CLIENT_ORIGIN) {
-      return callback(null, origin);
+    // Dynamic Vercel deployment support for ShadowTrace previews/production
+    const isVercelDeployment = /^https:\/\/shadow-trace(-[a-z0-9-]+)?\.vercel\.app$/.test(cleanOrigin);
+    if (isVercelDeployment) {
+      return callback(null, cleanOrigin);
     }
 
     console.warn(`[CORS] Rejected unpermitted origin: ${origin}`);
@@ -203,16 +216,16 @@ const gracefulShutdown = () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-const { verifyTransporter } = require('./services/emailService');
+const { verifyEmailService } = require('./services/emailService');
 
-// 9. Connect/initialize MongoDB asynchronously and verify SMTP transporter
+// 9. Connect/initialize MongoDB asynchronously and verify email service
 connectDB().then((conn) => {
   if (conn) {
     seedAdmin();
   }
 });
 
-// Verify SMTP email transport configuration on startup
-verifyTransporter();
+// Verify Resend email service configuration on startup
+verifyEmailService();
 
 module.exports = { app, server };
