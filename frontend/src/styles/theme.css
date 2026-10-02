@@ -1,0 +1,117 @@
+:root {
+  /* Core Backgrounds */
+  --bg-primary: #07090C;
+  --bg-secondary: #0D1015;
+  --bg-panel: #11151B;
+  --bg-panel-elevated: #161B23;
+  --bg-card: rgba(17, 21, 27, 0.88);
+  --bg-card-hover: rgba(22, 28, 36, 0.95);
+  --bg-input: #090B0F;
+
+  /* Gold & Bronze Palette */
+  --gold-primary: #C8A23A;
+  --gold-bright: #E0B94F;
+  --gold-light: #F3D275;
+  --bronze-muted: #6F5725;
+  --bronze-dark: #382B13;
+  --gold-border: rgba(200, 162, 58, 0.28);
+  --gold-border-subtle: rgba(200, 162, 58, 0.14);
+  --gold-border-bright: rgba(224, 185, 79, 0.55);
+  --gold-glow: 0 0 16px rgba(200, 162, 58, 0.18);
+  --gold-glow-strong: 0 0 24px rgba(224, 185, 79, 0.35);
+  --gold-gradient: linear-gradient(135deg, #E0B94F 0%, #C8A23A 55%, #6F5725 100%);
+  --gold-btn-gradient: linear-gradient(180deg, #E0B94F 0%, #C8A23A 100%);
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-panel: rgba(200, 162, 58, 0.2);
+  --border-panel-hover: rgba(200, 162, 58, 0.45);
+
+  /* Typography Colors */
+  --text-main: #ECEEF2;
+  --text-secondary: #9AA3B0;
+  --text-muted: #616B78;
+  --text-gold: #E0B94F;
+
+  /* Status Colors */
+  --status-success: #22c55e;
+  --status-success-bg: rgba(34, 197, 94, 0.12);
+  --status-success-border: rgba(34, 197, 94, 0.32);
+  --status-error: #ef4444;
+  --status-error-bg: rgba(239, 68, 68, 0.12);
+  --status-error-border: rgba(239, 68, 68, 0.35);
+  --status-info: #38bdf8;
+
+  /* Typography */
+  --font-serif: 'Cinzel', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.75);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 9999px;
+}
+
+[data-theme="light"] {
+  /* Core Backgrounds - Warm white, soft gray, crisp cards */
+  --bg-primary: #F4F6F9;
+  --bg-secondary: #EAEFF5;
+  --bg-panel: #FFFFFF;
+  --bg-panel-elevated: #FBFDFE;
+  --bg-card: rgba(255, 255, 255, 0.96);
+  --bg-card-hover: rgba(246, 248, 252, 1);
+  --bg-input: #FFFFFF;
+
+  /* Gold & Bronze Palette - Deep antique gold with high contrast */
+  --gold-primary: #96731D;
+  --gold-bright: #7A5B12;
+  --gold-light: #B89230;
+  --bronze-muted: #8A6D28;
+  --bronze-dark: #DCCBA0;
+  --gold-border: rgba(150, 115, 29, 0.35);
+  --gold-border-subtle: rgba(150, 115, 29, 0.18);
+  --gold-border-bright: rgba(150, 115, 29, 0.65);
+  --gold-glow: 0 0 16px rgba(150, 115, 29, 0.14);
+  --gold-glow-strong: 0 0 24px rgba(150, 115, 29, 0.22);
+  --gold-gradient: linear-gradient(135deg, #B89230 0%, #96731D 55%, #6A5016 100%);
+  --gold-btn-gradient: linear-gradient(180deg, #A88322 0%, #8A6715 100%);
+
+  /* Borders */
+  --border-subtle: rgba(0, 0, 0, 0.1);
+  --border-panel: rgba(150, 115, 29, 0.28);
+  --border-panel-hover: rgba(150, 115, 29, 0.55);
+
+  /* Typography Colors - High readability dark text */
+  --text-main: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #6B7280;
+  --text-gold: #8A6715;
+
+  /* Status Colors */
+  --status-success: #15803d;
+  --status-success-bg: rgba(21, 128, 61, 0.12);
+  --status-success-border: rgba(21, 128, 61, 0.35);
+  --status-error: #b91c1c;
+  --status-error-bg: rgba(185, 28, 28, 0.12);
+  --status-error-border: rgba(185, 28, 28, 0.35);
+  --status-info: #0284c7;
+
+  /* Shadows - Refined elevation for light surfaces */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}

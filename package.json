@@ -1,0 +1,19 @@
+{
+  "name": "shadowtrace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ShadowTrace - Digital Location Intelligence System",
+  "scripts": {
+    "dev": "node dev-runner.js",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "start": "node backend/server.js"
+  },
+  "keywords": [
+    "shadowtrace",
+    "geolocation",
+    "intelligence"
+  ],
+  "author": "Yuvaraj",
+  "license": "ISC"
+}

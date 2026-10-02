@@ -1,0 +1,105 @@
+# ========================================================
+# ShadowTrace - Root .gitignore
+# Excludes environment files, credentials, dependencies,
+# build artifacts, logs, and OS/editor metadata.
+# ========================================================
+
+# --------------------------------------------------------
+# 1. Environment & Secret Configuration Files
+# --------------------------------------------------------
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+
+# --------------------------------------------------------
+# 2. Credentials, Keys, Tokens & Certificates
+# --------------------------------------------------------
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+*.id_rsa
+*.id_dsa
+id_rsa
+id_rsa.pub
+id_dsa
+*.keystore
+*.jks
+secrets/
+credentials/
+credentials.json
+client_secret*.json
+*.token
+auth_token*
+
+# --------------------------------------------------------
+# 3. Dependencies
+# --------------------------------------------------------
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# --------------------------------------------------------
+# 4. Build Outputs & Compiled Binaries
+# --------------------------------------------------------
+dist/
+dist-ssr/
+build/
+out/
+target/
+bin/
+*.class
+*.jar
+*.war
+*.ear
+*.tsbuildinfo
+.parcel-cache/
+.next/
+.nuxt/
+
+# --------------------------------------------------------
+# 5. Logs & Runtime Artifacts
+# --------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --------------------------------------------------------
+# 6. Test Coverage & Temp Data
+# --------------------------------------------------------
+coverage/
+.nyc_output/
+*.lcov
+*.tmp
+*.temp
+*.bak
+
+# --------------------------------------------------------
+# 7. Operating System & IDE Files
+# --------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
