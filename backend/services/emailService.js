@@ -5,9 +5,9 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-let cachedTransporter = null;
+let cachedResendClient = null;
 
 /**
  * Partially mask an email address for secure, zero-leak logging (e.g. t***@gmail.com)
@@ -24,188 +24,172 @@ function maskEmail(email) {
 }
 
 /**
- * Inspects SMTP environment variables without exposing secret values
+ * Safely mask an API key for logs (e.g. re_123***)
  */
-function getSmtpStatus() {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = process.env.SMTP_PORT || '465';
-  const user = (process.env.SMTP_USER || '').trim();
-  const rawPass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || '').trim();
-  const from = (process.env.SMTP_FROM || '').trim();
+function maskApiKey(key) {
+  if (!key || typeof key !== 'string') return 'none';
+  const clean = key.trim();
+  if (clean.length <= 6) return '***';
+  return `${clean.substring(0, 6)}***`;
+}
 
-  const isConfigured = Boolean(user && rawPass);
+/**
+ * Resolves the verified sender address from environment variables.
+ * Falls back to Resend's default onboarding sender if unset.
+ */
+function getSenderAddress() {
+  const customFrom = (
+    process.env.RESEND_FROM_EMAIL ||
+    process.env.RESEND_FROM ||
+    process.env.EMAIL_FROM ||
+    process.env.SMTP_FROM ||
+    ''
+  ).trim();
+
+  if (!customFrom) {
+    return 'ShadowTrace <onboarding@resend.dev>';
+  }
+
+  // If the user specified only an email address without a display name, format it
+  if (!customFrom.includes('<') && customFrom.includes('@')) {
+    return `ShadowTrace <${customFrom}>`;
+  }
+
+  return customFrom;
+}
+
+/**
+ * Inspects Resend environment configuration without exposing secrets
+ */
+function getEmailServiceStatus() {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  const sender = getSenderAddress();
+  const isConfigured = Boolean(apiKey);
 
   return {
+    provider: 'Resend HTTPS API',
     isConfigured,
-    hasHost: Boolean(host),
-    hasPort: Boolean(port),
-    hasUser: Boolean(user),
-    hasPass: Boolean(rawPass),
-    hasFrom: Boolean(from),
-    user: user ? maskEmail(user) : null
+    hasApiKey: Boolean(apiKey),
+    sender,
+    maskedApiKey: maskApiKey(apiKey)
   };
 }
 
 /**
- * Checks whether SMTP settings are populated in environment variables
+ * Checks whether Resend API key is populated
  */
-function isSmtpConfigured() {
-  const status = getSmtpStatus();
+function isEmailConfigured() {
+  const status = getEmailServiceStatus();
   return status.isConfigured;
 }
 
 /**
- * Creates and returns a single, reusable Nodemailer transporter instance
+ * Creates and returns a cached Resend SDK client instance
  */
-function getTransporter(forceRefresh = false) {
-  if (cachedTransporter && !forceRefresh) {
-    return cachedTransporter;
+function getResendClient(forceRefresh = false) {
+  if (cachedResendClient && !forceRefresh) {
+    return cachedResendClient;
   }
 
-  const {
-    SMTP_HOST = 'smtp.gmail.com',
-    SMTP_PORT = '465',
-    SMTP_SECURE = 'true',
-    SMTP_USER,
-    SMTP_PASS,
-    SMTP_PASSWORD
-  } = process.env;
-
-  const rawPassword = (SMTP_PASS || SMTP_PASSWORD || '').trim();
-  // Strip all spaces from 16-character Google App Passwords (e.g. 'abcd efgh ijkl mnop' -> 'abcdefghijklmnop')
-  const cleanPassword = rawPassword.replace(/\s+/g, '');
-
-  if (!SMTP_USER || !cleanPassword) {
+  const apiKey = (process.env.RESEND_API_KEY || '').trim();
+  if (!apiKey) {
     return null;
   }
 
-  const portNum = parseInt(SMTP_PORT, 10) || 465;
-  const isSecure = SMTP_SECURE === 'true' || portNum === 465;
-
-  const transportConfig = {
-    host: SMTP_HOST.trim(),
-    port: portNum,
-    secure: isSecure,
-    auth: {
-      user: SMTP_USER.trim(),
-      pass: cleanPassword
-    },
-    // Safe timeouts to avoid hanging requests
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000
-  };
-
-  cachedTransporter = nodemailer.createTransport(transportConfig);
-  return cachedTransporter;
+  cachedResendClient = new Resend(apiKey);
+  return cachedResendClient;
 }
 
 /**
- * Verifies the SMTP transporter connection on backend startup.
- * Logs status clearly with host, port, user email, and category WITHOUT exposing secret credentials.
+ * Verifies email service configuration on backend startup.
+ * Logs status clearly without exposing secret keys or sensitive tokens.
  */
-async function verifyTransporter() {
-  const status = getSmtpStatus();
+async function verifyEmailService() {
+  const status = getEmailServiceStatus();
 
   if (!status.isConfigured) {
-    console.log('[ShadowTrace] SMTP configuration incomplete:');
-    console.log(`SMTP_HOST=${status.hasHost}`);
-    console.log(`SMTP_PORT=${status.hasPort}`);
-    console.log(`SMTP_USER=${status.hasUser}`);
-    console.log(`SMTP_PASS=${status.hasPass}`);
-    console.log(`SMTP_FROM=${status.hasFrom}`);
+    console.log('[ShadowTrace] Resend email service configuration incomplete:');
+    console.log('  RESEND_API_KEY   : missing');
+    console.log(`  RESEND_FROM_EMAIL: ${status.sender}`);
+    console.log('[ShadowTrace] Email OTP delivery will be disabled until RESEND_API_KEY is configured.');
     return false;
   }
 
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = process.env.SMTP_PORT || '465';
-  const user = (process.env.SMTP_USER || '').trim();
-
-  console.log('[ShadowTrace] SMTP configuration detected:');
-  console.log(`[ShadowTrace]   Host: ${host}`);
-  console.log(`[ShadowTrace]   Port: ${port}`);
-  console.log(`[ShadowTrace]   Sender: ${user}`);
-
-  const transporter = getTransporter(true);
-  if (!transporter) {
-    console.error('[ShadowTrace] SMTP transporter verification failed (Category: INITIALIZATION_ERROR)');
-    return false;
-  }
-
-  try {
-    await transporter.verify();
-    console.log('[ShadowTrace] SMTP transporter verified successfully (Authentication: SUCCESS)');
-    return true;
-  } catch (err) {
-    const isAuth = err.responseCode === 535 || err.code === 'EAUTH' || (err.message && err.message.toLowerCase().includes('username and password not accepted'));
-    const category = isAuth ? 'AUTHENTICATION_FAILED' : 'CONNECTION_FAILED';
-    console.error(`[ShadowTrace] SMTP transporter verification failed:`);
-    console.error(`[ShadowTrace]   SMTP Host        : ${host}`);
-    console.error(`[ShadowTrace]   SMTP Port        : ${port}`);
-    console.error(`[ShadowTrace]   SMTP User        : ${user}`);
-    console.error(`[ShadowTrace]   Error Code       : ${err.code || 'UNKNOWN'}`);
-    console.error(`[ShadowTrace]   Response Code    : ${err.responseCode || 'N/A'}`);
-    console.error(`[ShadowTrace]   Category         : ${category}`);
-    console.error(`[ShadowTrace]   Server Response  : ${err.response || err.message}`);
-    return false;
-  }
+  console.log('[ShadowTrace] Resend HTTPS API email service detected:');
+  console.log('  Provider : Resend HTTPS API');
+  console.log(`  Sender   : ${status.sender}`);
+  console.log(`  API Key  : [CONFIGURED] (${status.maskedApiKey})`);
+  return true;
 }
 
 /**
- * Categorizes an error from Nodemailer into a well-defined failure type
+ * Categorizes an error from Resend into a well-defined failure code and safe client message
  */
-function categorizeEmailError(err) {
+function categorizeResendError(err) {
   const msg = (err.message || '').toLowerCase();
-  const code = (err.code || '').toUpperCase();
+  const status = err.statusCode || err.status || 0;
+  const code = (err.code || err.name || '').toUpperCase();
 
-  if (code === 'SMTP_NOT_CONFIGURED' || msg.includes('missing') || msg.includes('incomplete')) {
+  if (code === 'RESEND_NOT_CONFIGURED' || msg.includes('missing api key') || msg.includes('not configured')) {
     return {
-      code: 'SMTP_NOT_CONFIGURED',
+      code: 'EMAIL_SEND_FAILED',
       clientMessage: 'Unable to send verification email. Please check the server email configuration.'
     };
   }
 
-  // Gmail authentication errors (535, invalid credentials, incorrect App Password)
+  // 401 Unauthorized / Invalid API Key
+  if (status === 401 || msg.includes('api key is invalid') || msg.includes('invalid api key') || msg.includes('unauthorized')) {
+    return {
+      code: 'EMAIL_SEND_FAILED',
+      clientMessage: 'Unable to send verification email. Please check the server email configuration.'
+    };
+  }
+
+  // 403 Forbidden / Unverified sender domain
+  if (status === 403 || msg.includes('domain') || msg.includes('not verified') || msg.includes('forbidden')) {
+    return {
+      code: 'EMAIL_SEND_FAILED',
+      clientMessage: 'Unable to send verification email. Please check the server email configuration.'
+    };
+  }
+
+  // 422 Unprocessable / Rejected recipient or domain restriction (e.g., onboarding@resend.dev sending to non-account email)
   if (
-    code === 'EAUTH' ||
-    err.responseCode === 535 ||
-    msg.includes('username and password not accepted') ||
-    msg.includes('invalid credentials') ||
-    msg.includes('badcredentials') ||
-    msg.includes('authentication')
+    status === 422 ||
+    code === 'VALIDATION_ERROR' ||
+    msg.includes('can only send testing emails to your own email address') ||
+    msg.includes('recipient') ||
+    msg.includes('restricted')
   ) {
     return {
-      code: 'SMTP_AUTH_FAILED',
-      clientMessage: 'Unable to send verification email. Please check the server email configuration.'
+      code: 'RECIPIENT_REJECTED',
+      clientMessage: msg.includes('testing emails to your own email address')
+        ? 'Resend trial mode: can only deliver emails to your verified Resend account email until a custom domain is added.'
+        : 'Unable to send verification email. The recipient address was rejected by the mail provider.'
     };
   }
 
-  // Connection issues (timeout, unreachable host, DNS failure)
+  // 429 Rate limited
+  if (status === 429 || msg.includes('rate limit') || msg.includes('too many requests')) {
+    return {
+      code: 'EMAIL_SEND_FAILED',
+      clientMessage: 'Email delivery rate limit reached. Please wait a moment and try again.'
+    };
+  }
+
+  // Network / Connection issues
   if (
     code === 'ECONNREFUSED' ||
     code === 'ETIMEDOUT' ||
     code === 'ENOTFOUND' ||
     code === 'ESOCKET' ||
     msg.includes('timeout') ||
-    msg.includes('connect')
+    msg.includes('network') ||
+    msg.includes('fetch failed')
   ) {
     return {
-      code: 'SMTP_CONNECTION_FAILED',
-      clientMessage: 'Unable to send verification email. Connection to SMTP mail server timed out or failed.'
-    };
-  }
-
-  // Recipient address rejection
-  if (
-    code === 'EENVELOPE' ||
-    code === 'RECIPIENT_REJECTED' ||
-    err.responseCode === 550 ||
-    err.responseCode === 553 ||
-    msg.includes('recipient')
-  ) {
-    return {
-      code: 'RECIPIENT_REJECTED',
-      clientMessage: 'Unable to send verification email. The recipient address was rejected by the mail provider.'
+      code: 'EMAIL_SEND_FAILED',
+      clientMessage: 'Unable to send verification email. Connection to mail service timed out or failed.'
     };
   }
 
@@ -216,7 +200,7 @@ function categorizeEmailError(err) {
 }
 
 /**
- * Sends a real 6-digit verification OTP email to the user's EXACT email address.
+ * Sends a real 6-digit verification OTP email via the Resend HTTPS API.
  * 
  * @param {string} toEmail - The EXACT recipient email address entered by the user
  * @param {string} otpCode - Cryptographically secure 6-digit OTP
@@ -233,32 +217,24 @@ async function sendVerificationOTP(toEmail, otpCode, fullName = 'Operative', pur
   const recipientEmail = toEmail.trim().toLowerCase();
   const masked = maskEmail(recipientEmail);
 
-  if (!isSmtpConfigured()) {
-    console.log('[ShadowTrace] SMTP configuration incomplete:');
-    const status = getSmtpStatus();
-    console.log(`SMTP_HOST=${status.hasHost}`);
-    console.log(`SMTP_PORT=${status.hasPort}`);
-    console.log(`SMTP_USER=${status.hasUser}`);
-    console.log(`SMTP_PASS=${status.hasPass}`);
-    console.log(`SMTP_FROM=${status.hasFrom}`);
-
-    const err = new Error('SMTP configuration missing or invalid. A 16-character Gmail App Password is required.');
-    err.code = 'SMTP_NOT_CONFIGURED';
+  if (!isEmailConfigured()) {
+    console.log('[ShadowTrace] Resend email service configuration incomplete: RESEND_API_KEY is missing.');
+    const err = new Error('Unable to send verification email. Please check the server email configuration.');
+    err.code = 'EMAIL_SEND_FAILED';
     throw err;
   }
 
-  const transporter = getTransporter();
-  if (!transporter) {
-    const err = new Error('Nodemailer SMTP transporter could not be initialized.');
-    err.code = 'SMTP_NOT_CONFIGURED';
+  const resend = getResendClient();
+  if (!resend) {
+    const err = new Error('Unable to send verification email. Please check the server email configuration.');
+    err.code = 'EMAIL_SEND_FAILED';
     throw err;
   }
 
-  // Safe terminal log as requested:
-  // [ShadowTrace] Sending verification email to: t***@gmail.com
-  console.log(`[ShadowTrace] Sending verification email to: ${masked}`);
+  // Safe terminal log: never logs OTP, never logs API key
+  console.log(`[ShadowTrace] Sending verification email via Resend to: ${masked}`);
 
-  const fromSender = process.env.SMTP_FROM || `"ShadowTrace" <${process.env.SMTP_USER}>`;
+  const fromSender = getSenderAddress();
   const isLogin = purpose === 'LOGIN';
   const subject = isLogin
     ? 'ShadowTrace — Operative Session Verification Code'
@@ -336,41 +312,42 @@ This code expires in 5 minutes.
 If you did not request this verification, ignore this email.`;
 
   try {
-    const info = await transporter.sendMail({
+    const { data, error } = await resend.emails.send({
       from: fromSender,
-      to: recipientEmail, // MUST be the exact email entered by the user
+      to: recipientEmail,
       subject,
       text: plainText,
       html: htmlContent
     });
 
-    if (Array.isArray(info.rejected) && info.rejected.includes(recipientEmail)) {
-      console.error(`[ShadowTrace] Recipient was rejected by SMTP server: ${masked}`);
-      const err = new Error(`Recipient email address was rejected by SMTP server: ${masked}`);
-      err.code = 'RECIPIENT_REJECTED';
+    if (error) {
+      const err = new Error(error.message || 'Resend email delivery failed');
+      err.statusCode = error.statusCode;
+      err.status = error.statusCode;
+      err.name = error.name;
       throw err;
     }
 
-    // Safe success log as requested:
-    // [ShadowTrace] Verification email sent successfully
-    console.log('[ShadowTrace] Verification email sent successfully');
+    // Safe success log: never exposes secrets
+    console.log(`[ShadowTrace] Verification email sent successfully (ID: ${data?.id || 'OK'})`);
 
     return {
       success: true,
-      messageId: info.messageId,
-      accepted: info.accepted
+      messageId: data?.id,
+      id: data?.id
     };
   } catch (rawError) {
-    const categorized = categorizeEmailError(rawError);
-    console.error(`[ShadowTrace] Failed to send verification email:`);
-    console.error(`[ShadowTrace]   Target Recipient : ${masked}`);
-    console.error(`[ShadowTrace]   SMTP Host        : ${process.env.SMTP_HOST || 'smtp.gmail.com'}`);
-    console.error(`[ShadowTrace]   SMTP Port        : ${process.env.SMTP_PORT || '465'}`);
-    console.error(`[ShadowTrace]   SMTP User        : ${process.env.SMTP_USER || 'none'}`);
-    console.error(`[ShadowTrace]   Error Code       : ${rawError.code || 'UNKNOWN'}`);
-    console.error(`[ShadowTrace]   Response Code    : ${rawError.responseCode || 'N/A'}`);
-    console.error(`[ShadowTrace]   Category         : ${categorized.code}`);
-    console.error(`[ShadowTrace]   Server Response  : ${rawError.response || rawError.message}`);
+    const categorized = categorizeResendError(rawError);
+
+    // Safe diagnostic log without exposing API key, OTP, or secret tokens
+    console.error('[ShadowTrace] Failed to send verification email:');
+    console.error(`  Target Recipient : ${masked}`);
+    console.error('  Provider         : Resend HTTPS API');
+    console.error(`  Sender           : ${fromSender}`);
+    console.error(`  Status Code      : ${rawError.statusCode || rawError.status || 'N/A'}`);
+    console.error(`  Category         : ${categorized.code}`);
+    console.error(`  Service Message  : ${rawError.message || 'Unknown error'}`);
+
     const enrichedError = new Error(categorized.clientMessage);
     enrichedError.code = categorized.code;
     enrichedError.originalMessage = rawError.message;
@@ -379,11 +356,13 @@ If you did not request this verification, ignore this email.`;
 }
 
 module.exports = {
-  getSmtpStatus,
-  isSmtpConfigured,
-  getTransporter,
-  verifyTransporter,
   sendVerificationOTP,
   sendOTPEmail: sendVerificationOTP,
+  verifyEmailService,
+  verifyTransporter: verifyEmailService, // backward compatibility with server.js
+  getEmailServiceStatus,
+  getSmtpStatus: getEmailServiceStatus,   // backward compatibility
+  isEmailConfigured,
+  isSmtpConfigured: isEmailConfigured,   // backward compatibility
   maskEmail
 };
