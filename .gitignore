@@ -78,7 +78,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # --------------------------------------------------------
-# 6. Test Coverage & Temp Data
+# 6. Test Coverage, Temp Data & Database Backups
 # --------------------------------------------------------
 coverage/
 .nyc_output/
@@ -86,6 +86,10 @@ coverage/
 *.tmp
 *.temp
 *.bak
+backup*/
+backups/
+*.dump
+
 
 # --------------------------------------------------------
 # 7. Operating System & IDE Files

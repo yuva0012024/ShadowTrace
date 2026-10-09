@@ -225,7 +225,7 @@ connectDB().then((conn) => {
   }
 });
 
-// Verify Resend email service configuration on startup
+// Verify Nodemailer SMTP email service configuration on startup
 verifyEmailService();
 
 module.exports = { app, server };
