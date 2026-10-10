@@ -357,11 +357,24 @@ function categorizeResendError(err) {
     };
   }
 
-  // 2. Forbidden / Domain unverified
+  // 2. Resend trial mode restriction: attempting to send to external email without verified custom domain
+  if (
+    msg.includes('can only send testing emails to your own email address') ||
+    msg.includes('only send testing emails') ||
+    msg.includes('testing emails') ||
+    msg.includes('own email address')
+  ) {
+    return {
+      code: 'RECIPIENT_REJECTED',
+      clientMessage: 'Resend trial restriction: Emails can only be delivered to your registered Resend account email until a custom domain is verified at resend.com/domains.'
+    };
+  }
+
+  // 3. Forbidden / Domain unverified
   if (
     status === 403 ||
-    msg.includes('domain') ||
     msg.includes('not verified') ||
+    msg.includes('domain') ||
     msg.includes('forbidden')
   ) {
     return {
@@ -370,21 +383,16 @@ function categorizeResendError(err) {
     };
   }
 
-  // 3. Recipient rejected or Resend trial mode limitation
+  // 4. Recipient rejected or validation error
   if (
     status === 422 ||
     code === 'VALIDATION_ERROR' ||
-    msg.includes('can only send testing emails to your own email address') ||
-    msg.includes('testing emails') ||
     msg.includes('recipient') ||
     msg.includes('restricted')
   ) {
-    const isTrialRestriction = msg.includes('testing emails') || msg.includes('own email address');
     return {
       code: 'RECIPIENT_REJECTED',
-      clientMessage: isTrialRestriction
-        ? 'Resend trial mode: can only deliver emails to your verified Resend account email until a custom domain is verified in Resend.'
-        : 'Unable to send verification email. The recipient address was rejected by the mail provider.'
+      clientMessage: 'Unable to send verification email. The recipient address was rejected by the mail provider.'
     };
   }
 
