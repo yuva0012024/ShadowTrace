@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { requireAuth } = require('../middleware/authMiddleware');
+const { getEmailServiceStatus } = require('../services/emailService');
+
+router.get('/email-status', (req, res) => {
+  res.status(200).json({
+    success: true,
+    ...getEmailServiceStatus()
+  });
+});
 
 router.post('/signup', authController.signup);
 router.post('/signup/request-otp', authController.sendRegistrationOTP);

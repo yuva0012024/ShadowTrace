@@ -199,11 +199,31 @@ export default function Settings() {
                   </span>
                 </div>
                 <div className="settings-field-row">
-                  <span className="settings-field-label">Provider Status</span>
+                  <span className="settings-field-label">Geolocation Status</span>
                   <span className="pill-badge pill-valid">
                     {statusData?.geolocationProvider?.status || 'Active'}
                   </span>
                 </div>
+                <div className="settings-field-row">
+                  <span className="settings-field-label">Email Service Provider</span>
+                  <span className="settings-static-val mono-font">
+                    {statusData?.emailService?.provider || 'Resend HTTPS API / SMTP'}
+                  </span>
+                </div>
+                <div className="settings-field-row">
+                  <span className="settings-field-label">Email Delivery Status</span>
+                  <span className={`pill-badge ${statusData?.emailService?.isConfigured ? 'pill-valid' : 'pill-invalid'}`}>
+                    {statusData?.emailService?.isConfigured ? 'Operational' : 'Incomplete'}
+                  </span>
+                </div>
+                {statusData?.emailService?.activeSender && (
+                  <div className="settings-field-row">
+                    <span className="settings-field-label">Verified Sender</span>
+                    <span className="settings-static-val mono-font">
+                      {statusData.emailService.activeSender}
+                    </span>
+                  </div>
+                )}
                 <div className="settings-field-row">
                   <span className="settings-field-label">Backend API URL</span>
                   <span className="settings-static-val mono-font">{API_BASE_URL}</span>

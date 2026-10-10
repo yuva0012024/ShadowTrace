@@ -350,6 +350,17 @@ export async function getSystemStatus(options = {}) {
   return response.data;
 }
 
+/**
+ * Fetches safe email service diagnostic status (no credentials exposed)
+ * GET /api/auth/email-status
+ */
+export async function getEmailStatus(options = {}) {
+  const response = await apiClient.get('/auth/email-status', {
+    signal: options.signal
+  });
+  return response.data;
+}
+
 /* ========================================================
    AUTHENTICATION APIS
    ======================================================== */

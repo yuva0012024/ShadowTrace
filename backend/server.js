@@ -27,6 +27,7 @@ const exportRoutes = require('./routes/exportRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { verifyEmailService, getEmailServiceStatus } = require('./services/emailService');
 
 // 2. Configure Express
 const app = express();
@@ -109,6 +110,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// GET /api/health/email - Safe email service health diagnostic (zero emails sent, zero secrets leaked)
+app.get('/api/health/email', (req, res) => {
+  const emailStatus = getEmailServiceStatus();
+  res.status(200).json({
+    success: true,
+    service: 'ShadowTrace Email Service',
+    status: emailStatus.isConfigured ? 'configured' : 'unconfigured',
+    ...emailStatus
+  });
+});
+
 // GET /api/settings/status - Detailed diagnostic endpoint
 app.get('/api/settings/status', async (req, res) => {
   const mongoConnected = mongoose.connection.readyState === 1;
@@ -133,6 +145,7 @@ app.get('/api/settings/status', async (req, res) => {
       host: mongoose.connection.host || '127.0.0.1',
       name: mongoose.connection.name || 'shadowtrace'
     },
+    emailService: getEmailServiceStatus(),
     geolocationProvider: {
       endpoint: apiConfig.geolocation.apiUrl,
       apiKeyConfigured: !!apiConfig.geolocation.apiKey,
@@ -216,8 +229,6 @@ const gracefulShutdown = () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-const { verifyEmailService } = require('./services/emailService');
-
 // 9. Connect/initialize MongoDB asynchronously and verify email service
 connectDB().then((conn) => {
   if (conn) {
@@ -225,7 +236,7 @@ connectDB().then((conn) => {
   }
 });
 
-// Verify Nodemailer SMTP email service configuration on startup
+// Verify email service configuration on startup
 verifyEmailService();
 
 module.exports = { app, server };
